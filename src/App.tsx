@@ -514,7 +514,7 @@ const App: React.FC = () => {
 
                 <DataTable headers={['Instrument Name', 'Live Price', 'Price Change', 'Actions']}>
                   {watchlist.map((item, i) => {
-                    const current = liveData[item.symbol] || { price: 0, change: '0%' };
+                    const current = liveData[item.symbol] || { price: 0, change: '0%', pass: false };
                     const isPositive = current.change.startsWith('+') || (parseFloat(current.change) > 0);
                     const isNegative = current.change.startsWith('-') || (parseFloat(current.change) < 0);
                     
