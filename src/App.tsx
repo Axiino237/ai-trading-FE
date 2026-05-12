@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { 
@@ -13,14 +13,11 @@ import {
   Activity, 
   ShieldCheck,
   Search,
-  Plus,
   Trash2,
   ChevronRight,
   User,
   History as HistoryIcon,
-  Bell,
-  LogOut,
-  Filter
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BACKEND_URL, SOCKET_URL } from './config';
