@@ -1,2 +1,2 @@
-export const BACKEND_URL = 'http://192.168.1.5:3000';
-export const SOCKET_URL = 'http://192.168.1.5:3000';
+export const BACKEND_URL = 'https://ai-trading-t3yo.onrender.com';
+export const SOCKET_URL = 'https://ai-trading-t3yo.onrender.com';
