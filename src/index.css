@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:is(.dark *));
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -6,7 +7,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 overflow-hidden h-screen;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 overflow-hidden h-screen transition-colors duration-300;
   }
   
   #root {
@@ -28,35 +29,35 @@
   }
 
   .stat-card {
-    @apply bg-white border border-slate-200 rounded-2xl p-6 flex flex-col shadow-sm hover:shadow-md transition-all;
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-6 flex flex-col shadow-sm hover:shadow-md transition-all;
   }
 
   .data-table-container {
-    @apply bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm;
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto shadow-sm;
   }
 
   .data-table {
-    @apply w-full border-collapse;
+    @apply w-full border-collapse min-w-[600px];
   }
 
   .data-table th {
-    @apply bg-slate-50 px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200;
+    @apply bg-slate-50 dark:bg-slate-800/50 px-4 md:px-6 py-4 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-left border-b border-slate-200 dark:border-slate-800;
   }
 
   .data-table td {
-    @apply px-6 py-4 text-sm border-b border-slate-100;
+    @apply px-4 md:px-6 py-4 text-sm border-b border-slate-100 dark:border-slate-800/50;
   }
 
   .mobile-tabs {
-    @apply fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex justify-around items-center z-[100] md:hidden;
+    @apply fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center z-[100] md:hidden;
   }
 
   .mobile-tab-btn {
-    @apply flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 bg-none border-none;
+    @apply flex flex-col items-center justify-center gap-1 w-full h-full text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-transparent border-none transition-colors;
   }
 
   .mobile-tab-btn.active {
-    @apply text-blue-600;
+    @apply text-blue-600 dark:text-blue-500;
   }
 }
 
