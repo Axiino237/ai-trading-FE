@@ -105,6 +105,7 @@ interface StockData {
   price: number;
   change: string;
   pass: boolean;
+  side?: 'BUY' | 'SELL' | 'NONE';
   indicators?: {
     rsi: number;
     trend: string;
@@ -121,21 +122,43 @@ interface Trade {
   trade_mode?: string;
 }
 
+// --- COMPONENTS ---
+
+const SidebarItem: React.FC<{ active: boolean, onClick: () => void, icon: any, label: string }> = ({ active, onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`nav-link flex items-center gap-3 w-full p-4 rounded-2xl transition-all ${
+      active ? 'bg-white/10 text-white shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'
+    }`}
+  >
+    {icon}
+    <span className="font-bold text-sm tracking-tight">{label}</span>
+  </button>
+);
+
 // --- MAIN APP ---
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'watchlist' | 'orders' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'watchlist' | 'orders' | 'settings' | 'activity'>('dashboard');
   const [liveData, setLiveData] = useState<Record<string, StockData>>({});
   const [balances, setBalances] = useState({ real: 0, paper: 0 });
   const [automationOn, setAutomationOn] = useState(false);
   const [tradeMode, setTradeMode] = useState<'PAPER' | 'REAL'>('PAPER');
+  const [scanMode, setScanMode] = useState<'STRICT' | 'RELAXED'>('STRICT');
   const [tradeLimit, setTradeLimit] = useState('5');
   const [activeTrades, setActiveTrades] = useState<Trade[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logOffset, setLogOffset] = useState(0);
+  const [hasMoreLogs, setHasMoreLogs] = useState(true);
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean, symbol: string, price: number, analysis: any }>({ open: false, symbol: '', price: 0, analysis: null });
+  const [isTrading, setIsTrading] = useState(false);
+  const [signalFilter, setSignalFilter] = useState<'all' | 'up'>('all');
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'bot' | 'manual'>('all');
 
   // WebSocket Setup
   useEffect(() => {
@@ -147,7 +170,10 @@ const App: React.FC = () => {
     socket.on('connect', () => console.log('Connected to Backend ⚡'));
     
     socket.on('symbol-status', (data: StockData) => {
-      setLiveData(prev => ({ ...prev, [data.symbol]: data }));
+      setLiveData(prev => ({ 
+        ...prev, 
+        [data.symbol]: { ...(prev[data.symbol] || {}), ...data } 
+      }));
     });
 
     socket.on('trade-executed', () => fetchData());
@@ -168,16 +194,40 @@ const App: React.FC = () => {
       setBalances(balRes.data);
       setAutomationOn(setRes.data.auto_trade_on);
       setTradeMode(setRes.data.trade_mode || 'PAPER');
+      setScanMode(setRes.data.scan_mode || 'STRICT');
       setTradeLimit(setRes.data.daily_trade_limit?.toString() || '5');
       setWatchlist(wlRes.data);
       setHistory(histRes.data);
       
       const open = histRes.data.filter((t: any) => t.status === 'OPEN' || !t.exit_price);
       setActiveTrades(open);
+
+      // Initial Logs
+      try {
+        const logRes = await axios.get(`${BACKEND_URL}/logs?limit=20&offset=0`);
+        setLogs(logRes.data || []);
+        if ((logRes.data || []).length < 20) setHasMoreLogs(false);
+        setLogOffset(20);
+      } catch (logErr) {
+        setLogs([]);
+        setHasMoreLogs(false);
+      }
     } catch (e) {
       console.error('Fetch Error:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreLogs = async () => {
+    if (!hasMoreLogs) return;
+    try {
+      const res = await axios.get(`${BACKEND_URL}/logs?limit=20&offset=${logOffset}`);
+      if (res.data.length < 20) setHasMoreLogs(false);
+      setLogs(prev => [...prev, ...res.data]);
+      setLogOffset(prev => prev + 20);
+    } catch (e) {
+      console.error('Load logs error');
     }
   };
 
@@ -238,11 +288,37 @@ const App: React.FC = () => {
     try {
       setLoading(true);
       const res = await axios.post(`${BACKEND_URL}/analyze`, { symbol });
-      alert(`AI Analysis for ${symbol}:\nSentiment: ${res.data.sentiment}\nConfidence: ${res.data.confidence}%\nExplanation: ${res.data.explanation}`);
+      return res.data;
     } catch (e) {
-      alert('Analysis failed');
+      console.error('Analysis failed');
+      return null;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualTradeOpen = async (symbol: string, price: number) => {
+    setTradeModal({ open: true, symbol, price, analysis: 'LOADING' });
+    const analysis = await handleAnalyze(symbol);
+    setTradeModal(prev => ({ ...prev, analysis }));
+  };
+
+  const handleManualTradeExecute = async (side: 'BUY' | 'SELL') => {
+    try {
+      setIsTrading(true);
+      await axios.post(`${BACKEND_URL}/trade/manual`, {
+        symbol: tradeModal.symbol,
+        side,
+        price: tradeModal.price,
+        user_id: '00000000-0000-0000-0000-000000000000'
+      });
+      alert(`Successfully placed ${side} order for ${tradeModal.symbol}`);
+      setTradeModal({ open: false, symbol: '', price: 0, analysis: null });
+      fetchData();
+    } catch (e) {
+      alert('Trade execution failed');
+    } finally {
+      setIsTrading(false);
     }
   };
 
@@ -277,16 +353,11 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
-              className={`nav-link ${activeTab === item.id ? 'active' : ''}`}
-            >
-              <item.icon size={20} />
-              <span className="font-bold">{item.label}</span>
-            </button>
-          ))}
+          <SidebarItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Terminal" />
+          <SidebarItem active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')} icon={<ListTree size={20} />} label="Watchlist" />
+          <SidebarItem active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} icon={<HistoryIcon size={20} />} label="History" />
+          <SidebarItem active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={<Activity size={20} />} label="Activity" />
+          <SidebarItem active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
         </nav>
 
         <div className="pt-6 border-t border-white/5 mt-auto">
@@ -399,19 +470,23 @@ const App: React.FC = () => {
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Alpha Traps Signals</h3>
                       <FilterBar 
                         options={[{label: 'ALL', value: 'all'}, {label: 'BULLISH', value: 'up'}]} 
-                        activeValue="all" 
-                        onSelect={() => {}} 
+                        activeValue={signalFilter} 
+                        onSelect={setSignalFilter} 
                       />
                     </div>
                     <DataTable headers={['Asset', 'LTP', 'Technical Trend', 'System Status']}>
-                      {Object.values(liveData).filter(s => s.pass).length === 0 ? (
+                      {Object.values(liveData)
+                        .filter(s => s.pass && (signalFilter === 'all' || s.indicators?.trend === 'UP'))
+                        .length === 0 ? (
                         <tr>
                           <td colSpan={4} className="text-center py-24 text-xs font-black text-slate-300 uppercase tracking-widest">
-                            No Active Signals Found
+                            No Active {signalFilter === 'up' ? 'Bullish' : ''} Signals Found
                           </td>
                         </tr>
                       ) : (
-                        Object.values(liveData).filter(s => s.pass).map((stock, i) => (
+                        Object.values(liveData)
+                          .filter(s => s.pass && (signalFilter === 'all' || s.indicators?.trend === 'UP'))
+                          .map((stock, i) => (
                           <tr key={i} className="hover:bg-slate-50 transition-colors group">
                             <td className="px-6 py-5 font-black text-slate-900">{stock.symbol}</td>
                             <td className="px-6 py-5 font-bold text-slate-600">₹{stock.price}</td>
@@ -435,7 +510,7 @@ const App: React.FC = () => {
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Open Exposure</h3>
                       <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl border border-blue-100">{activeTrades.length} ACTIVE</span>
                     </div>
-                    <DataTable headers={['Symbol', 'Entry', 'P&L']}>
+                    <DataTable headers={['Symbol', 'QTY', 'Entry', 'P&L']}>
                       {activeTrades.length === 0 ? (
                         <tr>
                           <td colSpan={3} className="text-center py-24 text-xs font-black text-slate-300 uppercase tracking-widest">No Active Positions</td>
@@ -443,7 +518,8 @@ const App: React.FC = () => {
                       ) : (
                         activeTrades.map((trade, i) => {
                           const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
-                          const pnl = (currentPrice - trade.entry_price) * (trade.type === 'BUY' ? 1 : -1);
+                          const qty = trade.quantity || 1;
+                          const pnl = (currentPrice - trade.entry_price) * (trade.type === 'BUY' ? 1 : -1) * qty;
                           return (
                             <tr key={i} className="hover:bg-slate-50 transition-colors">
                               <td className="px-6 py-5">
@@ -452,6 +528,7 @@ const App: React.FC = () => {
                                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg ${trade.type === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{trade.type}</span>
                                 </div>
                               </td>
+                              <td className="px-6 py-5 font-black text-slate-700">{qty}</td>
                               <td className="px-6 py-5 text-xs font-bold text-slate-400">₹{trade.entry_price}</td>
                               <td className="px-6 py-5 text-right font-black text-base">
                                 <span className={pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
@@ -514,7 +591,7 @@ const App: React.FC = () => {
 
                 <DataTable headers={['Instrument Name', 'Live Price', 'Price Change', 'Actions']}>
                   {watchlist.map((item, i) => {
-                    const current = liveData[item.symbol] || { price: 0, change: '0%', pass: false };
+                    const current = liveData[item.symbol] || { price: 0, change: '0%', pass: false, side: 'NONE' };
                     const isPositive = current.change.startsWith('+') || (parseFloat(current.change) > 0);
                     const isNegative = current.change.startsWith('-') || (parseFloat(current.change) < 0);
                     
@@ -524,7 +601,9 @@ const App: React.FC = () => {
                           <div className="flex flex-col">
                             <span>{item.symbol}</span>
                             {current.pass && (
-                              <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-md mt-1 w-fit animate-pulse">SIGNAL PASS ✅</span>
+                              <span className={`text-[10px] font-black ${current.side === 'SELL' ? 'bg-rose-500' : 'bg-emerald-500'} text-white px-2 py-0.5 rounded-md mt-1 w-fit animate-pulse`}>
+                                {current.side === 'SELL' ? 'SELL SIGNAL 🔻' : 'BUY SIGNAL ✅'}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -536,19 +615,18 @@ const App: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-6">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-3">
                             <button 
-                              onClick={() => handleAnalyze(item.symbol)}
-                              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 hover:bg-blue-600 hover:text-white transition-all"
+                              onClick={() => handleManualTradeOpen(item.symbol, current.price)}
+                              className="bg-slate-900 text-white p-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
                             >
-                              Analyze
+                              <Zap size={18} fill="currentColor" />
                             </button>
                             <button 
                               onClick={() => handleRemoveSymbol(item.symbol)}
-                              className="p-3 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all"
-                              title="Remove from Watchlist"
+                              className="text-slate-400 hover:text-rose-600 p-3 rounded-xl hover:bg-rose-50 transition-all"
                             >
-                              <Trash2 size={20} />
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         </td>
@@ -558,6 +636,89 @@ const App: React.FC = () => {
                 </DataTable>
               </motion.div>
             )}
+
+            {/* TRADE MODAL */}
+            <AnimatePresence>
+              {tradeModal.open && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setTradeModal({ ...tradeModal, open: false })}
+                    className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                  />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    className="relative bg-white rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden border border-white/20"
+                  >
+                    <div className="p-8">
+                      <div className="flex justify-between items-start mb-8">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{tradeModal.symbol}</h2>
+                          <p className="text-slate-400 font-bold">Manual Trade Execution</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-black text-slate-900 tracking-tighter">₹{tradeModal.price}</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Market Price</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Cpu className="text-blue-600" size={18} />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Instant Insight</span>
+                        </div>
+                        
+                        {tradeModal.analysis === 'LOADING' ? (
+                          <div className="flex flex-col gap-2">
+                            <div className="h-4 w-3/4 bg-slate-200 rounded animate-pulse" />
+                            <div className="h-4 w-1/2 bg-slate-200 rounded animate-pulse" />
+                          </div>
+                        ) : tradeModal.analysis ? (
+                          <div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${tradeModal.analysis.sentiment === 'BUY' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                AI SUGGESTS: {tradeModal.analysis.sentiment}
+                              </span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                CONFIDENCE: {tradeModal.analysis.confidenceScore || tradeModal.analysis.confidence}%
+                              </span>
+                            </div>
+                            <p className="text-sm font-bold text-slate-600 leading-relaxed">
+                              {tradeModal.analysis.explanation}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-bold text-slate-400 italic">AI Analysis unavailable for this symbol.</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <button 
+                          disabled={isTrading}
+                          onClick={() => handleManualTradeExecute('BUY')}
+                          className="bg-emerald-500 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <TrendingUp size={20} />
+                          Execute BUY
+                        </button>
+                        <button 
+                          disabled={isTrading}
+                          onClick={() => handleManualTradeExecute('SELL')}
+                          className="bg-rose-500 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <TrendingDown size={20} />
+                          Execute SELL
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {activeTab === 'orders' && (
               <motion.div 
@@ -574,14 +735,19 @@ const App: React.FC = () => {
                   </div>
                   <FilterBar 
                     options={[{label: 'ALL', value: 'all'}, {label: 'BOT', value: 'bot'}, {label: 'MANUAL', value: 'manual'}]} 
-                    activeValue="all" 
-                    onSelect={() => {}} 
+                    activeValue={historyFilter} 
+                    onSelect={setHistoryFilter} 
                   />
                 </div>
-                <DataTable headers={['Timestamp', 'Security', 'Operation', 'Source', 'Settled Price']}>
-                  {history.length === 0 ? (
+                <DataTable headers={['Timestamp', 'Security', 'Operation', 'QTY', 'Source', 'Settled Price']}>
+                  {history.filter(item => {
+                    if (historyFilter === 'all') return true;
+                    if (historyFilter === 'bot') return item.trade_mode === 'BOT' || !item.trade_mode;
+                    if (historyFilter === 'manual') return item.trade_mode === 'MANUAL';
+                    return true;
+                  }).length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-40">
+                      <td colSpan={6} className="text-center py-40">
                         <div className="flex flex-col items-center gap-6">
                           <HistoryIcon size={64} className="text-slate-100" />
                           <p className="text-xs font-black text-slate-300 uppercase tracking-[0.4em]">Historical Ledger Empty</p>
@@ -589,7 +755,12 @@ const App: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    history.map((item, i) => (
+                    history.filter(item => {
+                      if (historyFilter === 'all') return true;
+                      if (historyFilter === 'bot') return item.trade_mode === 'BOT' || !item.trade_mode;
+                      if (historyFilter === 'manual') return item.trade_mode === 'MANUAL';
+                      return true;
+                    }).map((item, i) => (
                       <tr key={i} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-6 text-slate-400 font-bold text-xs uppercase tracking-tighter">
                           {new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -600,6 +771,7 @@ const App: React.FC = () => {
                             {item.type}
                           </span>
                         </td>
+                        <td className="px-6 py-6 font-black text-slate-700">{item.quantity || 1}</td>
                         <td className="px-6 py-6">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
@@ -615,6 +787,72 @@ const App: React.FC = () => {
                     ))
                   )}
                 </DataTable>
+              </motion.div>
+            )}
+
+            {activeTab === 'activity' && (
+              <motion.div 
+                key="activity"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="max-w-7xl"
+              >
+                <div className="mb-8">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-2">System Ledger</h3>
+                  <p className="text-slate-500 font-bold text-sm">REAL-TIME ACTIVITY AND DECISION LOGS</p>
+                </div>
+
+                <div 
+                  className="bg-white rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden"
+                  onScroll={(e: any) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.target;
+                    if (scrollHeight - scrollTop <= clientHeight + 50) {
+                      loadMoreLogs();
+                    }
+                  }}
+                  style={{ height: '70vh', overflowY: 'auto' }}
+                >
+                  <div className="divide-y divide-slate-50">
+                    {logs.map((log, i) => (
+                      <div key={i} className="p-6 hover:bg-slate-50/50 transition-all flex items-start gap-4">
+                        <div className={`mt-1 p-2 rounded-xl ${
+                          log.level === 'success' ? 'bg-emerald-50 text-emerald-600' : 
+                          log.level === 'warn' ? 'bg-amber-50 text-amber-600' : 
+                          log.level === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'
+                        }`}>
+                          {log.level === 'success' ? <Zap size={16} /> : <Activity size={16} />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              {new Date(log.created_at).toLocaleTimeString()} • {log.symbol || 'SYSTEM'}
+                            </span>
+                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                              log.level === 'success' ? 'bg-emerald-100 text-emerald-700' : 
+                              log.level === 'warn' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {log.level}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-slate-700 mb-2">{log.message}</p>
+                          {log.data && (
+                            <div className="bg-slate-900/5 rounded-xl p-3">
+                              <pre className="text-[10px] font-mono text-slate-500 whitespace-pre-wrap">
+                                {JSON.stringify(log.data, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {hasMoreLogs && (
+                      <div className="p-10 text-center">
+                        <div className="inline-block w-6 h-6 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -679,6 +917,23 @@ const App: React.FC = () => {
                           className="w-28 bg-slate-50 border-2 border-slate-200 rounded-2xl py-5 px-6 text-center text-2xl font-black outline-none focus:border-blue-600 focus:ring-8 ring-blue-600/5 transition-all text-slate-900"
                         />
                       </div>
+                    </div>
+
+                    <div className="p-10 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                      <div className="flex items-center gap-8">
+                        <div className="w-16 h-16 rounded-[24px] bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Zap size={28} />
+                        </div>
+                        <div>
+                          <p className="font-black text-xl text-slate-900 uppercase tracking-tighter">Scan Intelligence</p>
+                          <p className="text-sm text-slate-500 font-bold mt-1">SWITCH BETWEEN HIGH-CONVICTION OR VOLUME SIGNALS</p>
+                        </div>
+                      </div>
+                      <FilterBar 
+                        options={[{label: 'CONSERVATIVE', value: 'STRICT'}, {label: 'AGGRESSIVE', value: 'RELAXED'}]} 
+                        activeValue={scanMode} 
+                        onSelect={(val) => { setScanMode(val); updateSettings({ scan_mode: val }); }} 
+                      />
                     </div>
                   </div>
                 </div>
