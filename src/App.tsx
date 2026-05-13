@@ -120,6 +120,7 @@ interface Trade {
   exit_price?: number;
   created_at: string;
   trade_mode?: string;
+  quantity?: number;
 }
 
 // --- COMPONENTS ---
