@@ -115,6 +115,7 @@ interface StockData {
 }
 
 interface Trade {
+  id?: string | number;
   symbol: string;
   entry_price: number;
   type: 'BUY' | 'SELL';
@@ -338,6 +339,19 @@ const App: React.FC = () => {
       fetchData();
     } catch (e) {
       alert('Trade execution failed');
+    } finally {
+      setIsTrading(false);
+    }
+  };
+
+  const handleCloseTrade = async (tradeId: any) => {
+    if (!window.confirm('Are you sure you want to close this position?')) return;
+    try {
+      setIsTrading(true);
+      await axios.post(`${BACKEND_URL}/trade/close`, { tradeId });
+      fetchData();
+    } catch (e) {
+      alert('Failed to close trade');
     } finally {
       setIsTrading(false);
     }
@@ -654,10 +668,10 @@ const App: React.FC = () => {
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Open Exposure</h3>
                       <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl border border-blue-100">{activeTrades.filter(t => t.side?.includes(tradeMode)).length} ACTIVE</span>
                     </div>
-                    <DataTable headers={['Symbol', 'QTY', 'Entry', 'Live', 'P&L']}>
+                    <DataTable headers={['Symbol', 'QTY', 'Entry', 'Live', 'P&L', 'Action']}>
                       {activeTrades.filter(t => t.side?.includes(tradeMode)).length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="text-center py-24 text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">No Active Positions</td>
+                          <td colSpan={6} className="text-center py-24 text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">No Active Positions</td>
                         </tr>
                       ) : (
                         activeTrades.filter(t => t.side?.includes(tradeMode)).map((trade, i) => {
@@ -679,6 +693,15 @@ const App: React.FC = () => {
                                 <span className={pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                                   {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
                                 </span>
+                              </td>
+                              <td className="px-6 py-5 text-right">
+                                <button
+                                  onClick={() => handleCloseTrade(trade.id)}
+                                  disabled={isTrading}
+                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  CLOSE
+                                </button>
                               </td>
                             </tr>
                           );
