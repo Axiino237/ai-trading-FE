@@ -19,7 +19,9 @@ import {
   History as HistoryIcon,
   Bell,
   Moon,
-  Sun
+  Sun,
+  XCircle,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BACKEND_URL, SOCKET_URL } from './config';
@@ -115,7 +117,7 @@ interface StockData {
 }
 
 interface Trade {
-  id?: string | number;
+  id?: any;
   symbol: string;
   entry_price: number;
   type: 'BUY' | 'SELL';
@@ -345,7 +347,7 @@ const App: React.FC = () => {
   };
 
   const handleCloseTrade = async (tradeId: any) => {
-    if (!window.confirm('Are you sure you want to close this position?')) return;
+    if (!confirm('Are you sure you want to exit this position?')) return;
     try {
       setIsTrading(true);
       await axios.post(`${BACKEND_URL}/trade/close`, { tradeId });
@@ -689,7 +691,7 @@ const App: React.FC = () => {
                               <td className="px-6 py-5 font-black text-slate-700 dark:text-slate-300">{qty}</td>
                               <td className="px-6 py-5 text-xs font-bold text-slate-400 dark:text-slate-500">₹{trade.entry_price}</td>
                               <td className="px-6 py-5 text-xs font-bold text-blue-600 dark:text-blue-400 animate-pulse">₹{currentPrice}</td>
-                              <td className="px-6 py-5 text-right font-black text-base">
+                              <td className="px-6 py-5 font-black text-base">
                                 <span className={pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                                   {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
                                 </span>
@@ -698,9 +700,10 @@ const App: React.FC = () => {
                                 <button
                                   onClick={() => handleCloseTrade(trade.id)}
                                   disabled={isTrading}
-                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded-lg transition-colors disabled:opacity-50"
+                                  className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all group relative"
+                                  title="Exit Position"
                                 >
-                                  CLOSE
+                                  <XCircle size={20} className={isTrading ? 'animate-pulse' : ''} />
                                 </button>
                               </td>
                             </tr>
