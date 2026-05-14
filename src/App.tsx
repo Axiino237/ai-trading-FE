@@ -170,6 +170,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('stocksProTheme');
     return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+  const [showLogsDrawer, setShowLogsDrawer] = useState(false);
 
   // Dark Mode Engine
   useEffect(() => {
@@ -371,6 +372,7 @@ const App: React.FC = () => {
     { id: 'dashboard', label: 'Terminal', icon: LayoutDashboard },
     { id: 'watchlist', label: 'Watchlist', icon: ListTree },
     { id: 'orders', label: 'History', icon: HistoryIcon },
+    { id: 'activity', label: 'Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -392,7 +394,7 @@ const App: React.FC = () => {
           <SidebarItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Terminal" />
           <SidebarItem active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')} icon={<ListTree size={20} />} label="Watchlist" />
           <SidebarItem active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} icon={<HistoryIcon size={20} />} label="History" />
-          <SidebarItem active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={<Activity size={20} />} label="Activity" />
+          <SidebarItem active={false} onClick={() => setShowLogsDrawer(true)} icon={<Activity size={20} />} label="Logs" />
           <SidebarItem active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
         </nav>
 
@@ -427,6 +429,14 @@ const App: React.FC = () => {
               className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-slate-100 dark:bg-slate-800 rounded-xl"
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
+            <button 
+              onClick={() => setShowLogsDrawer(true)}
+              className="relative p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <Activity size={20} />
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full border-2 border-white dark:border-slate-950 animate-pulse"></div>
             </button>
 
             <button className="relative p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
@@ -1217,7 +1227,13 @@ const App: React.FC = () => {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id as any)}
+            onClick={() => {
+              if (item.id === 'activity') {
+                setShowLogsDrawer(true);
+              } else {
+                setActiveTab(item.id as any);
+              }
+            }}
             className={`mobile-tab-btn ${activeTab === item.id ? 'active' : 'opacity-60 hover:opacity-100'}`}
           >
             <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}>
@@ -1227,6 +1243,84 @@ const App: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {/* Logs Drawer */}
+      <AnimatePresence>
+        {showLogsDrawer && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogsDrawer(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-950 z-[70] shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Activity Ledger</h3>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Real-time system events</p>
+                </div>
+                <button 
+                  onClick={() => setShowLogsDrawer(false)}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  <XCircle size={24} className="text-slate-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {logs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full opacity-30">
+                    <Activity size={48} className="mb-4" />
+                    <p className="text-xs font-black uppercase tracking-widest">No Recent Logs</p>
+                  </div>
+                ) : (
+                  logs.map((log, i) => (
+                    <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:border-blue-500/30 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          {new Date(log.created_at).toLocaleTimeString()} • {log.symbol || 'SYSTEM'}
+                        </span>
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                          log.level === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
+                          log.level === 'warn' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' :
+                          log.level === 'error' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {log.level}
+                        </span>
+                      </div>
+                      <p className="text-[13px] font-bold text-slate-700 dark:text-slate-300 leading-snug">{log.message}</p>
+                      {log.data && (
+                        <div className="mt-2 bg-black/5 dark:bg-black/20 rounded-lg p-2 overflow-x-auto">
+                          <pre className="text-[9px] font-mono text-slate-500 dark:text-slate-400 whitespace-pre">
+                            {JSON.stringify(log.data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <button 
+                  onClick={() => { setShowLogsDrawer(false); setActiveTab('activity'); }}
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                >
+                  View Full Audit Log
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
