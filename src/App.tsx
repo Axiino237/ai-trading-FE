@@ -394,7 +394,7 @@ const App: React.FC = () => {
           <SidebarItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Terminal" />
           <SidebarItem active={activeTab === 'watchlist'} onClick={() => setActiveTab('watchlist')} icon={<ListTree size={20} />} label="Watchlist" />
           <SidebarItem active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} icon={<HistoryIcon size={20} />} label="History" />
-          <SidebarItem active={false} onClick={() => setShowLogsDrawer(true)} icon={<Activity size={20} />} label="Logs" />
+          <SidebarItem active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} icon={<Activity size={20} />} label="Logs" />
           <SidebarItem active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
         </nav>
 
@@ -1227,13 +1227,7 @@ const App: React.FC = () => {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => {
-              if (item.id === 'activity') {
-                setShowLogsDrawer(true);
-              } else {
-                setActiveTab(item.id as any);
-              }
-            }}
+            onClick={() => setActiveTab(item.id as any)}
             className={`mobile-tab-btn ${activeTab === item.id ? 'active' : 'opacity-60 hover:opacity-100'}`}
           >
             <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''}`}>
