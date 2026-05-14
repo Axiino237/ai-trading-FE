@@ -162,6 +162,8 @@ const App: React.FC = () => {
   const [isTrading, setIsTrading] = useState(false);
   const [signalFilter, setSignalFilter] = useState<'all' | 'up'>('all');
   const [historyFilter, setHistoryFilter] = useState<'all' | 'bot' | 'manual'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closed'>('all');
+  const [pnlFilter, setPnlFilter] = useState<'all' | 'profit' | 'loss'>('all');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('stocksProTheme');
     return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -914,64 +916,116 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="max-w-7xl"
               >
-                <div className="flex justify-between items-end mb-8">
-                  <div>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Audit Logs</h3>
-                    <p className="text-slate-500 font-bold text-sm">SETTLED AND HISTORICAL TRANSACTIONS</p>
+                <div className="flex flex-col gap-6 mb-8">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Audit Logs</h3>
+                      <p className="text-slate-500 font-bold text-sm">SETTLED AND HISTORICAL TRANSACTIONS</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Source</span>
+                        <FilterBar
+                          options={[{ label: 'ALL', value: 'all' }, { label: 'BOT', value: 'bot' }, { label: 'MANUAL', value: 'manual' }]}
+                          activeValue={historyFilter}
+                          onSelect={setHistoryFilter}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</span>
+                        <FilterBar
+                          options={[{ label: 'ALL', value: 'all' }, { label: 'OPEN', value: 'open' }, { label: 'CLOSED', value: 'closed' }]}
+                          activeValue={statusFilter}
+                          onSelect={setStatusFilter}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Outcome</span>
+                        <FilterBar
+                          options={[{ label: 'ALL', value: 'all' }, { label: 'PROFIT', value: 'profit' }, { label: 'LOSS', value: 'loss' }]}
+                          activeValue={pnlFilter}
+                          onSelect={setPnlFilter}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <FilterBar
-                    options={[{ label: 'ALL', value: 'all' }, { label: 'BOT', value: 'bot' }, { label: 'MANUAL', value: 'manual' }]}
-                    activeValue={historyFilter}
-                    onSelect={setHistoryFilter}
-                  />
                 </div>
-                <DataTable headers={['Timestamp', 'Security', 'Operation', 'QTY', 'Source', 'Settled Price']}>
-                  {history.filter(item => {
-                    if (historyFilter === 'all') return true;
-                    if (historyFilter === 'bot') return item.trade_mode === 'BOT' || !item.trade_mode;
-                    if (historyFilter === 'manual') return item.trade_mode === 'MANUAL';
-                    return true;
-                  }).length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-40">
-                        <div className="flex flex-col items-center gap-6">
-                          <HistoryIcon size={64} className="text-slate-100 dark:text-slate-800" />
-                          <p className="text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.4em]">Historical Ledger Empty</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    history.filter(item => {
-                      if (historyFilter === 'all') return true;
-                      if (historyFilter === 'bot') return item.trade_mode === 'BOT' || !item.trade_mode;
-                      if (historyFilter === 'manual') return item.trade_mode === 'MANUAL';
+
+                <DataTable headers={['Timestamp', 'Security', 'Operation', 'QTY', 'Status', 'P&L', 'Settled Price']}>
+                  {(() => {
+                    const filtered = history.filter(item => {
+                      // Source Filter
+                      if (historyFilter !== 'all') {
+                        const isBot = item.trade_mode === 'BOT' || !item.trade_mode;
+                        if (historyFilter === 'bot' && !isBot) return false;
+                        if (historyFilter === 'manual' && isBot) return false;
+                      }
+
+                      // Status Filter
+                      const isOpen = item.status === 'OPEN' || !item.exit_price;
+                      if (statusFilter === 'open' && !isOpen) return false;
+                      if (statusFilter === 'closed' && isOpen) return false;
+
+                      // P&L Filter
+                      if (pnlFilter !== 'all') {
+                        const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                        const exitPrice = item.exit_price || currentPrice;
+                        const pnl = (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1);
+                        if (pnlFilter === 'profit' && pnl <= 0) return false;
+                        if (pnlFilter === 'loss' && pnl > 0) return false;
+                      }
+
                       return true;
-                    }).map((item, i) => (
-                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-6 py-6 text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-tighter whitespace-nowrap">
-                          {new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                        </td>
-                        <td className="px-6 py-6 font-black text-slate-900 dark:text-white text-lg tracking-tighter whitespace-nowrap">{item.symbol}</td>
-                        <td className="px-6 py-6">
-                          <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${item.type === 'BUY' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800'}`}>
-                            {item.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-6 font-black text-slate-700 dark:text-slate-300">{item.quantity || 1}</td>
-                        <td className="px-6 py-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500">
-                              {item.trade_mode === 'BOT' || !item.trade_mode ? <Cpu size={16} /> : <User size={16} />}
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="text-center py-40">
+                            <div className="flex flex-col items-center gap-6">
+                              <HistoryIcon size={64} className="text-slate-100 dark:text-slate-800" />
+                              <p className="text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.4em]">No matching records found</p>
                             </div>
-                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                              {item.trade_mode || 'AI ENGINE'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filtered.map((item, i) => {
+                      const isOpen = item.status === 'OPEN' || !item.exit_price;
+                      const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                      const exitPrice = item.exit_price || currentPrice;
+                      const qty = item.quantity || 1;
+                      const pnl = (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1) * qty;
+
+                      return (
+                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-6 py-6 text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-tighter whitespace-nowrap">
+                            {new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </td>
+                          <td className="px-6 py-6 font-black text-slate-900 dark:text-white text-lg tracking-tighter whitespace-nowrap">{item.symbol}</td>
+                          <td className="px-6 py-6">
+                            <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${item.type === 'BUY' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800'}`}>
+                              {item.type}
                             </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-6 text-right font-black text-xl text-slate-900 dark:text-white">₹{item.entry_price}</td>
-                      </tr>
-                    ))
-                  )}
+                          </td>
+                          <td className="px-6 py-6 font-black text-slate-700 dark:text-slate-300">{qty}</td>
+                          <td className="px-6 py-6">
+                            <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isOpen ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                              {isOpen ? 'ACTIVE' : 'SETTLED'}
+                            </span>
+                          </td>
+                          <td className={`px-6 py-6 font-black text-base ${pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
+                            {isOpen && <span className="text-[8px] ml-1 opacity-50 uppercase">Live</span>}
+                          </td>
+                          <td className="px-6 py-6 text-right font-black text-xl text-slate-900 dark:text-white">
+                            ₹{item.exit_price || item.entry_price}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </DataTable>
               </motion.div>
             )}
