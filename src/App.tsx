@@ -503,32 +503,31 @@ const App: React.FC = () => {
                       </div>
                       <div className={`mt-4 flex items-center gap-2 text-xs font-black w-fit px-3 py-1.5 rounded-xl border ${
                         (() => {
-                          let pnl = 0;
-                          activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
-                            const qty = trade.quantity || 1;
-                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
-                            pnl += trade.type === 'BUY' 
-                              ? (currentPrice - trade.entry_price) * qty 
-                              : (trade.entry_price - currentPrice) * qty;
+                          let totalPnl = 0;
+                          history.filter(t => t.side?.includes('REAL')).forEach(item => {
+                            const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                            const exitPrice = item.exit_price || currentPrice;
+                            const qty = item.quantity || 1;
+                            totalPnl += (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1) * qty;
                           });
-                          return pnl >= 0;
+                          return totalPnl >= 0;
                         })() 
                         ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' 
                         : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800'
                       }`}>
                         {(() => {
-                          let pnl = 0;
-                          activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
-                            const qty = trade.quantity || 1;
-                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
-                            pnl += trade.type === 'BUY' 
-                              ? (currentPrice - trade.entry_price) * qty 
-                              : (trade.entry_price - currentPrice) * qty;
+                          let totalPnl = 0;
+                          history.filter(t => t.side?.includes('REAL')).forEach(item => {
+                            const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                            const exitPrice = item.exit_price || currentPrice;
+                            const qty = item.quantity || 1;
+                            const pnl = (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1) * qty;
+                            totalPnl += pnl;
                           });
                           return (
                             <>
-                              {pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                              <span>{pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)} Profit</span>
+                              {totalPnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              <span>{totalPnl >= 0 ? '+' : ''}₹{totalPnl.toFixed(2)} Total Profit</span>
                             </>
                           );
                         })()}
@@ -576,29 +575,31 @@ const App: React.FC = () => {
                       </div>
                       <div className={`mt-4 flex items-center gap-2 text-xs font-black w-fit px-3 py-1.5 rounded-xl border ${
                         (() => {
-                          let equity = Number(balances.paper || 0);
-                          activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
-                            const qty = trade.quantity || 1;
-                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
-                            equity += (trade.entry_price * qty) + (trade.type === 'BUY' ? (currentPrice - trade.entry_price) * qty : (trade.entry_price - currentPrice) * qty);
+                          let totalPnl = 0;
+                          history.filter(t => t.side?.includes('PAPER')).forEach(item => {
+                            const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                            const exitPrice = item.exit_price || currentPrice;
+                            const qty = item.quantity || 1;
+                            totalPnl += (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1) * qty;
                           });
-                          return equity >= 100000;
+                          return totalPnl >= 0;
                         })() 
                         ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' 
                         : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800'
                       }`}>
                         {(() => {
-                          let equity = Number(balances.paper || 0);
-                          activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
-                            const qty = trade.quantity || 1;
-                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
-                            equity += (trade.entry_price * qty) + (trade.type === 'BUY' ? (currentPrice - trade.entry_price) * qty : (trade.entry_price - currentPrice) * qty);
+                          let totalPnl = 0;
+                          history.filter(t => t.side?.includes('PAPER')).forEach(item => {
+                            const currentPrice = liveData[item.symbol]?.price || item.entry_price;
+                            const exitPrice = item.exit_price || currentPrice;
+                            const qty = item.quantity || 1;
+                            const pnl = (exitPrice - item.entry_price) * (item.type === 'BUY' ? 1 : -1) * qty;
+                            totalPnl += pnl;
                           });
-                          const pnl = equity - 100000;
                           return (
                             <>
-                              {pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                              <span>{pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)} Total Profit</span>
+                              {totalPnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              <span>{totalPnl >= 0 ? '+' : ''}₹{totalPnl.toFixed(2)} Total Profit</span>
                             </>
                           );
                         })()}
