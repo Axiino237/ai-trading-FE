@@ -123,6 +123,7 @@ interface Trade {
   created_at: string;
   trade_mode?: string;
   quantity?: number;
+  side?: string;
 }
 
 // --- COMPONENTS ---
@@ -437,25 +438,11 @@ const App: React.FC = () => {
                     <Card className="flex flex-col justify-between">
                       <div>
                         <span className="stat-label text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-widest">Real Portfolio</span>
-                        <div className="flex items-baseline gap-2 mt-1">
-                          <span className="stat-value text-3xl font-black text-slate-900 dark:text-white">₹{Number(balances.real || 0).toLocaleString()}</span>
-                          <span className="text-xs font-black text-slate-400 dark:text-slate-500">INR</span>
-                        </div>
-                      </div>
-                      <div className="mt-6 flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-black bg-emerald-50 dark:bg-emerald-900/20 w-fit px-3 py-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800">
-                        <TrendingUp size={14} />
-                        <span>+0.00% Today</span>
-                      </div>
-                    </Card>
-
-                    <Card className="flex flex-col justify-between">
-                      <div>
-                        <span className="stat-label text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-widest">Virtual Equity</span>
-                        <div className="flex items-baseline gap-2 mt-1">
+                        <div className="flex items-baseline gap-2 mt-1 mb-4">
                           <span className="stat-value text-3xl font-black text-slate-900 dark:text-white">
                             ₹{(() => {
-                              let equity = Number(balances.paper || 0);
-                              activeTrades.forEach(trade => {
+                              let equity = Number(balances.real || 0);
+                              activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
                                 const qty = trade.quantity || 1;
                                 const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
                                 const pnl = trade.type === 'BUY' 
@@ -468,11 +455,102 @@ const App: React.FC = () => {
                           </span>
                           <span className="text-xs font-black text-slate-400 dark:text-slate-500">INR</span>
                         </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-widest text-[9px]">Invested Amount</span>
+                            <span className="text-slate-900 dark:text-white">
+                              ₹{(() => {
+                                let invested = 0;
+                                activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
+                                  invested += trade.entry_price * (trade.quantity || 1);
+                                });
+                                return invested.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-widest text-[9px]">Available Cash</span>
+                            <span className="text-slate-900 dark:text-white">₹{Number(balances.real || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className={`mt-6 flex items-center gap-2 text-xs font-black w-fit px-3 py-1.5 rounded-xl border ${
+                      <div className={`mt-4 flex items-center gap-2 text-xs font-black w-fit px-3 py-1.5 rounded-xl border ${
+                        (() => {
+                          let pnl = 0;
+                          activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
+                            const qty = trade.quantity || 1;
+                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
+                            pnl += trade.type === 'BUY' 
+                              ? (currentPrice - trade.entry_price) * qty 
+                              : (trade.entry_price - currentPrice) * qty;
+                          });
+                          return pnl >= 0;
+                        })() 
+                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' 
+                        : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800'
+                      }`}>
+                        {(() => {
+                          let pnl = 0;
+                          activeTrades.filter(t => t.side?.includes('REAL')).forEach(trade => {
+                            const qty = trade.quantity || 1;
+                            const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
+                            pnl += trade.type === 'BUY' 
+                              ? (currentPrice - trade.entry_price) * qty 
+                              : (trade.entry_price - currentPrice) * qty;
+                          });
+                          return (
+                            <>
+                              {pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                              <span>{pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)} Profit</span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </Card>
+
+                    <Card className="flex flex-col justify-between">
+                      <div>
+                        <span className="stat-label text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-widest">Virtual Equity</span>
+                        <div className="flex items-baseline gap-2 mt-1 mb-4">
+                          <span className="stat-value text-3xl font-black text-slate-900 dark:text-white">
+                            ₹{(() => {
+                              let equity = Number(balances.paper || 0);
+                              activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
+                                const qty = trade.quantity || 1;
+                                const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
+                                const pnl = trade.type === 'BUY' 
+                                  ? (currentPrice - trade.entry_price) * qty 
+                                  : (trade.entry_price - currentPrice) * qty;
+                                equity += (trade.entry_price * qty) + pnl;
+                              });
+                              return equity.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+                            })()}
+                          </span>
+                          <span className="text-xs font-black text-slate-400 dark:text-slate-500">INR</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-widest text-[9px]">Invested Amount</span>
+                            <span className="text-slate-900 dark:text-white">
+                              ₹{(() => {
+                                let invested = 0;
+                                activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
+                                  invested += trade.entry_price * (trade.quantity || 1);
+                                });
+                                return invested.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-widest text-[9px]">Available Cash</span>
+                            <span className="text-slate-900 dark:text-white">₹{Number(balances.paper || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`mt-4 flex items-center gap-2 text-xs font-black w-fit px-3 py-1.5 rounded-xl border ${
                         (() => {
                           let equity = Number(balances.paper || 0);
-                          activeTrades.forEach(trade => {
+                          activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
                             const qty = trade.quantity || 1;
                             const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
                             equity += (trade.entry_price * qty) + (trade.type === 'BUY' ? (currentPrice - trade.entry_price) * qty : (trade.entry_price - currentPrice) * qty);
@@ -484,7 +562,7 @@ const App: React.FC = () => {
                       }`}>
                         {(() => {
                           let equity = Number(balances.paper || 0);
-                          activeTrades.forEach(trade => {
+                          activeTrades.filter(t => t.side?.includes('PAPER')).forEach(trade => {
                             const qty = trade.quantity || 1;
                             const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
                             equity += (trade.entry_price * qty) + (trade.type === 'BUY' ? (currentPrice - trade.entry_price) * qty : (trade.entry_price - currentPrice) * qty);
@@ -493,7 +571,7 @@ const App: React.FC = () => {
                           return (
                             <>
                               {pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                              <span>{pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)} Total</span>
+                              <span>{pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)} Total Profit</span>
                             </>
                           );
                         })()}
@@ -572,15 +650,15 @@ const App: React.FC = () => {
                   <div className="xl:col-span-2 space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Open Exposure</h3>
-                      <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl border border-blue-100">{activeTrades.length} ACTIVE</span>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl border border-blue-100">{activeTrades.filter(t => t.side?.includes(tradeMode)).length} ACTIVE</span>
                     </div>
                     <DataTable headers={['Symbol', 'QTY', 'Entry', 'P&L']}>
-                      {activeTrades.length === 0 ? (
+                      {activeTrades.filter(t => t.side?.includes(tradeMode)).length === 0 ? (
                         <tr>
                           <td colSpan={4} className="text-center py-24 text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">No Active Positions</td>
                         </tr>
                       ) : (
-                        activeTrades.map((trade, i) => {
+                        activeTrades.filter(t => t.side?.includes(tradeMode)).map((trade, i) => {
                           const currentPrice = liveData[trade.symbol]?.price || trade.entry_price;
                           const qty = trade.quantity || 1;
                           const pnl = (currentPrice - trade.entry_price) * (trade.type === 'BUY' ? 1 : -1) * qty;
