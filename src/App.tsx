@@ -20,8 +20,7 @@ import {
   Bell,
   Moon,
   Sun,
-  XCircle,
-  ExternalLink
+  XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BACKEND_URL, SOCKET_URL } from './config';
