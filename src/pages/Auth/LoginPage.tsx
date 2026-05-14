@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, User, Moon, Sun } from 'lucide-react';
+import { Zap, Moon, Sun } from 'lucide-react';
 
 interface LoginPageProps {
   authMode: 'login' | 'register';

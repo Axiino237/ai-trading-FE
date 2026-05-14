@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, Activity, Zap, Trash2, ChevronRight } from 'lucide-react';
-import { DataTable, Card } from '../../components/Common';
+import { DataTable } from '../../components/Common';
 
 // ─── STATS DASHBOARD (Terminal Tab) ───────────────────────────────────────────
 interface DashboardPageProps {
@@ -13,12 +13,12 @@ interface DashboardPageProps {
   watchlist: any[];
   updateSettings: (updates: any) => void;
   handleTradeClose: (tradeId: number) => void;
-  handleManualTradeOpen: (symbol: string, price: number, type: 'BUY' | 'SELL', quantity: number) => void;
+
   handleRemoveSymbol: (symbol: string) => void;
   setManualTradeSymbol: (symbol: string | null) => void;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ stats, trades, liveData, scanMode, setScanMode, watchlist, updateSettings, handleTradeClose, handleManualTradeOpen, handleRemoveSymbol, setManualTradeSymbol }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ stats, trades, liveData, scanMode, setScanMode, watchlist, updateSettings, handleTradeClose, handleRemoveSymbol, setManualTradeSymbol }) => {
   const [signalFilter, setSignalFilter] = useState<'ALL' | 'BULLISH'>('ALL');
   const activeTrades = trades.filter((t: any) => t.status === 'OPEN');
   
@@ -297,14 +297,14 @@ interface WatchlistPageProps {
   suggestions: any[];
   watchlist: any[];
   liveData: any;
-  handleManualTradeOpen: (symbol: string, price: number, type: 'BUY' | 'SELL', quantity: number) => void;
+
   handleRemoveSymbol: (symbol: string) => void;
   setManualTradeSymbol: (symbol: string | null) => void;
 }
 
 export const WatchlistPage: React.FC<WatchlistPageProps> = ({
   searchQuery, setSearchQuery, handleAddSymbol,
-  suggestions, watchlist, liveData, handleManualTradeOpen, handleRemoveSymbol, setManualTradeSymbol
+  suggestions, watchlist, liveData, handleRemoveSymbol, setManualTradeSymbol
 }) => {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">

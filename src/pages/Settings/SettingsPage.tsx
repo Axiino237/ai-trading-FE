@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Activity, Zap, Lock } from 'lucide-react';
-import { FilterBar } from '../../components/Common';
+
 
 interface SettingsPageProps {
   tradeMode: string;

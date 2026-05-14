@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { Users, CreditCard, Activity, CheckCircle, XCircle } from 'lucide-react';
 import { BACKEND_URL } from '../../config';
-import { DataTable, Card } from '../../components/Common';
+import { Card } from '../../components/Common';
 
 interface AdminPageProps {
   authToken: string;

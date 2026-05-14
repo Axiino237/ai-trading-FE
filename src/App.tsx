@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Bell, Sun, Moon, User, QrCode, CreditCard, Activity, LayoutDashboard, ListTree, History as HistoryIcon, Settings as SettingsIcon, ShieldAlert, TrendingUp, TrendingDown } from 'lucide-react';
+import { Zap, Bell, Sun, Moon, QrCode, CreditCard, Activity, LayoutDashboard, ListTree, History as HistoryIcon, Settings as SettingsIcon, ShieldAlert, TrendingUp, TrendingDown } from 'lucide-react';
 
 // Config
 import { BACKEND_URL, SOCKET_URL } from './config';
@@ -305,7 +305,7 @@ const App: React.FC = () => {
                 watchlist={watchlist}
                 updateSettings={updateSettings}
                 handleTradeClose={handleTradeClose}
-                handleManualTradeOpen={handleManualTradeOpen}
+
                 handleRemoveSymbol={handleRemoveSymbol}
                 setManualTradeSymbol={setManualTradeSymbol}
               />
@@ -315,7 +315,7 @@ const App: React.FC = () => {
                 searchQuery={searchQuery} setSearchQuery={setSearchQuery}
                 handleAddSymbol={handleAddSymbol} suggestions={suggestions}
                 watchlist={watchlist} liveData={liveData}
-                handleManualTradeOpen={handleManualTradeOpen}
+
                 handleRemoveSymbol={handleRemoveSymbol}
                 setManualTradeSymbol={setManualTradeSymbol}
               />
@@ -323,7 +323,7 @@ const App: React.FC = () => {
             {activeTab === 'orders' && <HistoryPage trades={trades} liveData={liveData} walletLogs={walletLogs} />}
             {activeTab === 'subscription' && (
               <SubscriptionPage 
-                authUser={authUser} paymentConfig={paymentConfig}
+                authUser={authUser}
                 setShowUpgradeModal={setShowUpgradeModal} setPendingPlan={setPendingPlan}
               />
             )}

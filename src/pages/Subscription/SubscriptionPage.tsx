@@ -1,17 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, QrCode, CreditCard } from 'lucide-react';
+
 
 interface SubscriptionPageProps {
   authUser: any;
-  paymentConfig: any;
+
   setShowUpgradeModal: (show: boolean) => void;
   setPendingPlan: (plan: string) => void;
 }
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ 
   authUser, 
-  paymentConfig, 
   setShowUpgradeModal, 
   setPendingPlan 
 }) => {
