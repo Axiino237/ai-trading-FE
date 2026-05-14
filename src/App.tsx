@@ -652,10 +652,10 @@ const App: React.FC = () => {
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Open Exposure</h3>
                       <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl border border-blue-100">{activeTrades.filter(t => t.side?.includes(tradeMode)).length} ACTIVE</span>
                     </div>
-                    <DataTable headers={['Symbol', 'QTY', 'Entry', 'P&L']}>
+                    <DataTable headers={['Symbol', 'QTY', 'Entry', 'Live', 'P&L']}>
                       {activeTrades.filter(t => t.side?.includes(tradeMode)).length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="text-center py-24 text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">No Active Positions</td>
+                          <td colSpan={5} className="text-center py-24 text-xs font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">No Active Positions</td>
                         </tr>
                       ) : (
                         activeTrades.filter(t => t.side?.includes(tradeMode)).map((trade, i) => {
@@ -672,6 +672,7 @@ const App: React.FC = () => {
                               </td>
                               <td className="px-6 py-5 font-black text-slate-700 dark:text-slate-300">{qty}</td>
                               <td className="px-6 py-5 text-xs font-bold text-slate-400 dark:text-slate-500">₹{trade.entry_price}</td>
+                              <td className="px-6 py-5 text-xs font-bold text-blue-600 dark:text-blue-400 animate-pulse">₹{currentPrice}</td>
                               <td className="px-6 py-5 text-right font-black text-base">
                                 <span className={pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                                   {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
