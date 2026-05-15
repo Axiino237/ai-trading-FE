@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Zap, LogOut, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import React from 'react';
+import { LogOut, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const SidebarItem: React.FC<{
