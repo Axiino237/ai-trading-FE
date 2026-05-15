@@ -246,6 +246,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ stats, trades, liv
                     <th className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Entry</th>
                     <th className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Live</th>
                     <th className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">P&L</th>
+                    <th className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Hold Time</th>
                     <th className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                   </tr>
                 </thead>
@@ -267,6 +268,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ stats, trades, liv
                         <td className="px-5 py-4 font-bold text-slate-900 dark:text-slate-200 text-xs">₹{currentPrice}</td>
                         <td className={`px-5 py-4 font-black text-xs ${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
+                        </td>
+                        <td className="px-5 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                          {t.expected_duration || 'Intraday'}
                         </td>
                         <td className="px-5 py-4 text-right">
                           <button 

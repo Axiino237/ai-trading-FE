@@ -57,7 +57,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ trades, liveData, walletLogs 
           </div>
         </div>
         
-        <DataTable headers={['Timestamp', 'Symbol', 'Type', 'Qty', 'Status', 'P&L', 'Price']}>
+        <DataTable headers={['Timestamp', 'Symbol', 'Type', 'Qty', 'Hold Time', 'Status', 'P&L', 'Price']}>
           {filteredTrades.length === 0 ? (
             <tr>
               <td colSpan={7} className="text-center py-20 text-slate-400 uppercase text-[10px] font-black tracking-widest">No trade history found</td>
@@ -81,6 +81,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ trades, liveData, walletLogs 
                   </span>
                 </td>
                 <td className="px-6 py-6 font-black text-slate-700 dark:text-slate-300">{qty}</td>
+                <td className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.expected_duration || 'Intraday'}</td>
                 <td className="px-6 py-6">
                   <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isOpen ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                     {isOpen ? 'ACTIVE' : 'SETTLED'}
