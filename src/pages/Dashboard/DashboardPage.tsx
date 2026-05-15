@@ -25,13 +25,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ stats, trades, liv
   // Real values
   const realBalance = stats.real || 0;
   const realInvested = stats.invested_real || 0;
-  const realProfit = 0; // Or calculate if you have real PnL logic
+  const realProfit = stats.mode === 'REAL' ? (stats.totalProfit || 0) : 0;
   
   // Paper values
-  const paperBalance = stats.paper || stats.totalBalance || 3000;
-  const paperInvested = stats.invested_paper || 0;
-  const paperProfit = stats.todayPnl || 0;
-  const paperVirtualEquity = paperBalance + paperInvested;
+  const paperBalance = stats.paper || 3000;
+  const paperInvested = stats.investedCapital || 0;
+  const paperProfit = stats.mode === 'PAPER' ? (stats.totalProfit || 0) : 0;
+  const paperVirtualEquity = paperBalance + paperInvested + paperProfit;
 
   const isAutomationEngaged = scanMode === 'RELAXED' || scanMode === 'STRICT'; // Assuming any active scan mode means engaged
 

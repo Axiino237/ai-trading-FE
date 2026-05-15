@@ -16,6 +16,7 @@ import SubscriptionPage from './pages/Subscription/SubscriptionPage';
 import SettingsPage from './pages/Settings/SettingsPage';
 import LoginPage from './pages/Auth/LoginPage';
 import AdminPage from './pages/Admin/AdminPage';
+import LogsPage from './pages/Admin/LogsPage';
 import { ProfilePage } from './pages/Profile/ProfilePage';
 
 interface AuthUser {
@@ -36,7 +37,7 @@ const App: React.FC = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<any>(null);
   const [upgradeTxnId, setUpgradeTxnId] = useState('');
-  
+
   // Auth States
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('stocksProAuthToken') || '');
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -97,13 +98,14 @@ const App: React.FC = () => {
     { id: 'orders', label: 'History', icon: HistoryIcon },
     { id: 'subscription', label: 'Membership', icon: Zap },
     { id: 'admin', label: 'Command Center', icon: ShieldAlert },
+    { id: 'logs', label: 'Audit Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: SettingsIcon }
   ];
 
   if (authUser?.role === 'ADMIN') {
     navItems = navItems.filter(i => i.id !== 'subscription');
   } else {
-    navItems = navItems.filter(i => i.id !== 'admin');
+    navItems = navItems.filter(i => i.id !== 'admin' && i.id !== 'logs');
   }
 
   const fetchUser = async () => {
@@ -129,7 +131,7 @@ const App: React.FC = () => {
       const trades = tr.data || [];
       setTrades(trades);
       const active = trades.filter((t: any) => t.status === 'OPEN').length;
-      
+
       let investedReal = 0;
       let investedPaper = 0;
       trades.filter((t: any) => t.status === 'OPEN').forEach((t: any) => {
@@ -151,17 +153,25 @@ const App: React.FC = () => {
     } catch (e) { console.warn('[fetchData] wallet/logs failed:', e); }
 
     try {
-      const walletRes = await axios.get(`${BACKEND_URL}/wallet`, { headers });
-      if (walletRes.data) {
-        setStats(prev => ({ ...prev, paper: walletRes.data.balance }));
+      const balanceRes = await axios.get(`${BACKEND_URL}/balances`, { headers });
+      if (balanceRes.data) {
+        setStats(prev => ({
+          ...prev,
+          paper: balanceRes.data.paper,
+          real: balanceRes.data.real,
+          mode: balanceRes.data.mode,
+          investedCapital: balanceRes.data.invested,
+          totalProfit: balanceRes.data.totalProfit,
+          totalEquity: balanceRes.data.totalEquity
+        }));
       }
-    } catch (e) { console.warn('[fetchData] wallet failed:', e); }
+    } catch (e) { console.warn('[fetchData] balances failed:', e); }
 
     try {
       const sets = await axios.get(`${BACKEND_URL}/settings`, { headers });
       setTradeMode(sets.data.trade_mode || 'PAPER');
       setScanMode(sets.data.scan_mode || 'STRICT');
-      setMaxTrades(sets.data.max_trades_per_day || 5);
+      setMaxTrades(sets.data.daily_trade_limit || 5);
     } catch (e) { console.warn('[fetchData] settings failed:', e); }
 
     try {
@@ -188,7 +198,7 @@ const App: React.FC = () => {
     try {
       const res = await axios.get(`${BACKEND_URL}/search?query=${q}`);
       setSuggestions(res.data);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleAddSymbol = async (sym: string) => {
@@ -197,14 +207,14 @@ const App: React.FC = () => {
       setSearchQuery('');
       setSuggestions([]);
       fetchData();
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleRemoveSymbol = async (sym: string) => {
     try {
       await axios.delete(`${BACKEND_URL}/watchlist/${sym}`, { headers: { Authorization: `Bearer ${authToken}` } });
       fetchData();
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateSettings = async (updates: any) => {
@@ -251,7 +261,7 @@ const App: React.FC = () => {
 
   if (!authToken || !authUser) {
     return (
-      <LoginPage 
+      <LoginPage
         authMode={authMode} setAuthMode={setAuthMode}
         authName={authName} setAuthName={setAuthName}
         authEmail={authEmail} setAuthEmail={setAuthEmail}
@@ -266,9 +276,9 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans transition-colors duration-300">
-      <Sidebar 
-        activeTab={activeTab} setActiveTab={setActiveTab} 
-        authUser={authUser} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} 
+      <Sidebar
+        activeTab={activeTab} setActiveTab={setActiveTab}
+        authUser={authUser} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}
         handleLogout={handleLogout}
         navItems={navItems}
       />
@@ -299,7 +309,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-10 scrollbar-hide">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
-              <DashboardPage 
+              <DashboardPage
                 stats={stats} trades={trades} liveData={liveData}
                 scanMode={scanMode} setScanMode={setScanMode}
                 watchlist={watchlist}
@@ -311,7 +321,7 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'watchlist' && (
-              <WatchlistPage 
+              <WatchlistPage
                 searchQuery={searchQuery} setSearchQuery={setSearchQuery}
                 handleAddSymbol={handleAddSymbol} suggestions={suggestions}
                 watchlist={watchlist} liveData={liveData}
@@ -322,13 +332,13 @@ const App: React.FC = () => {
             )}
             {activeTab === 'orders' && <HistoryPage trades={trades} liveData={liveData} walletLogs={walletLogs} />}
             {activeTab === 'subscription' && (
-              <SubscriptionPage 
+              <SubscriptionPage
                 authUser={authUser}
                 setShowUpgradeModal={setShowUpgradeModal} setPendingPlan={setPendingPlan}
               />
             )}
             {activeTab === 'settings' && (
-              <SettingsPage 
+              <SettingsPage
                 tradeMode={tradeMode} setTradeMode={setTradeMode}
                 scanMode={scanMode} setScanMode={setScanMode}
                 maxTrades={maxTrades} setMaxTrades={setMaxTrades}
@@ -337,6 +347,7 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'admin' && <AdminPage authToken={authToken} />}
+            {activeTab === 'logs' && <LogsPage authToken={authToken} />}
             {activeTab === 'profile' && <ProfilePage authToken={authToken} />}
           </AnimatePresence>
         </main>
@@ -393,12 +404,12 @@ const App: React.FC = () => {
       {/* GLOBAL MANUAL TRADE MODAL */}
       <AnimatePresence>
         {manualTradeSymbol && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
             onClick={() => { setManualTradeSymbol(null); setAiAnalysis(null); }}
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-[#0B1120] border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
@@ -408,7 +419,7 @@ const App: React.FC = () => {
               {(() => {
                 const current = liveData[manualTradeSymbol] || { price: 0 };
                 const price = parseFloat(current.price) || 0;
-                
+
                 // Fetch AI Analysis automatically when modal opens
                 if (!aiAnalysis && !isAnalyzing) {
                   setIsAnalyzing(true);
@@ -434,7 +445,7 @@ const App: React.FC = () => {
                 const suggestionText = isAnalyzing ? 'Fetching 5-day market data and running AI analysis... Please wait.' : (aiAnalysis?.explanation || 'Analyzing market conditions...');
                 const durationType = aiAnalysis?.holdingType || '...';
                 const expectedTime = aiAnalysis?.expectedDuration || '...';
-                
+
                 const target = aiAnalysis?.tp ? aiAnalysis.tp.toFixed(2) : (price * 1.04).toFixed(2);
                 const sl = aiAnalysis?.sl ? aiAnalysis.sl.toFixed(2) : (price * 0.98).toFixed(2);
 
@@ -479,8 +490,8 @@ const App: React.FC = () => {
 
                     <div className="mb-8 relative z-10">
                       <label className="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Order Quantity</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         min="1"
                         value={tradeQty}
                         onChange={(e) => setTradeQty(parseInt(e.target.value) || 1)}
@@ -488,65 +499,65 @@ const App: React.FC = () => {
                       />
                     </div>
 
-                      {isAnalyzing ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-4 mb-8 relative z-10">
-                          {aiSide === 'BUY' || aiSide === 'NEUTRAL' ? (
-                            <div className="bg-gradient-to-b from-[#131B2C] to-[#0A171D] border border-emerald-900/30 rounded-2xl p-5 border-l-4 border-l-emerald-500 col-span-2">
-                              <div className="inline-block px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded mb-4">
-                                AI Buy Scenario
+                    {isAnalyzing ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4 mb-8 relative z-10">
+                        {aiSide === 'BUY' || aiSide === 'NEUTRAL' ? (
+                          <div className="bg-gradient-to-b from-[#131B2C] to-[#0A171D] border border-emerald-900/30 rounded-2xl p-5 border-l-4 border-l-emerald-500 col-span-2">
+                            <div className="inline-block px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded mb-4">
+                              AI Buy Scenario
+                            </div>
+                            <div className="flex justify-between items-center space-y-3">
+                              <div>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Target</p>
+                                <p className="text-xl font-black text-emerald-400">₹{target}</p>
                               </div>
-                              <div className="flex justify-between items-center space-y-3">
-                                <div>
-                                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Target</p>
-                                  <p className="text-xl font-black text-emerald-400">₹{target}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stop Loss</p>
-                                  <p className="text-xl font-black text-rose-400">₹{sl}</p>
-                                </div>
+                              <div className="text-right">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stop Loss</p>
+                                <p className="text-xl font-black text-rose-400">₹{sl}</p>
                               </div>
                             </div>
-                          ) : (
-                            <div className="bg-gradient-to-b from-[#131B2C] to-[#1D0A0F] border border-rose-900/30 rounded-2xl p-5 border-l-4 border-l-rose-500 col-span-2">
-                              <div className="inline-block px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase tracking-widest rounded mb-4">
-                                AI Sell Scenario
+                          </div>
+                        ) : (
+                          <div className="bg-gradient-to-b from-[#131B2C] to-[#1D0A0F] border border-rose-900/30 rounded-2xl p-5 border-l-4 border-l-rose-500 col-span-2">
+                            <div className="inline-block px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase tracking-widest rounded mb-4">
+                              AI Sell Scenario
+                            </div>
+                            <div className="flex justify-between items-center space-y-3">
+                              <div>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Target</p>
+                                <p className="text-xl font-black text-emerald-400">₹{target}</p>
                               </div>
-                              <div className="flex justify-between items-center space-y-3">
-                                <div>
-                                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Target</p>
-                                  <p className="text-xl font-black text-emerald-400">₹{target}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stop Loss</p>
-                                  <p className="text-xl font-black text-rose-400">₹{sl}</p>
-                                </div>
+                              <div className="text-right">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stop Loss</p>
+                                <p className="text-xl font-black text-rose-400">₹{sl}</p>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                      <div className="grid grid-cols-2 gap-4 relative z-10">
-                        <button 
-                          onClick={() => {
-                            handleManualTradeOpen(manualTradeSymbol, price, 'BUY', tradeQty);
-                            setManualTradeSymbol(null);
-                            setAiAnalysis(null);
-                          }}
+                    <div className="grid grid-cols-2 gap-4 relative z-10">
+                      <button
+                        onClick={() => {
+                          handleManualTradeOpen(manualTradeSymbol, price, 'BUY', tradeQty);
+                          setManualTradeSymbol(null);
+                          setAiAnalysis(null);
+                        }}
                         className="py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2"
                       >
                         <TrendingUp size={16} /> Execute Buy
                       </button>
-                        <button 
-                          onClick={() => {
-                            handleManualTradeOpen(manualTradeSymbol, price, 'SELL', tradeQty);
-                            setManualTradeSymbol(null);
-                            setAiAnalysis(null);
-                          }}
+                      <button
+                        onClick={() => {
+                          handleManualTradeOpen(manualTradeSymbol, price, 'SELL', tradeQty);
+                          setManualTradeSymbol(null);
+                          setAiAnalysis(null);
+                        }}
                         className="py-4 bg-rose-500 hover:bg-rose-400 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all flex items-center justify-center gap-2"
                       >
                         <TrendingDown size={16} /> Execute Sell
