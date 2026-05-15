@@ -345,21 +345,47 @@ export const WatchlistPage: React.FC<WatchlistPageProps> = ({
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-20"
+              className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-20 divide-y divide-slate-100 dark:divide-slate-800/50"
             >
-              {suggestions.slice(0, 6).map((item: any, idx: number) => (
+              {suggestions.slice(0, 8).map((item: any, idx: number) => (
                 <div
                   key={idx}
                   onClick={() => handleAddSymbol(item.tradingSymbol)}
-                  className="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
+                  className="p-5 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-blue-600/10 cursor-pointer transition-all group"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center font-black text-xs">EQ</div>
-                    <span className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tighter">{item.tradingSymbol}</span>
+                  <div className="flex items-center gap-5">
+                    <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black text-[10px] shadow-sm
+                      ${item.exchSeg === 'BSE' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'}`}>
+                      <span>{item.exchSeg}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tighter group-hover:text-blue-500 transition-colors">
+                          {item.tradingSymbol.replace('-EQ', '')}
+                        </span>
+                        {item.tradingSymbol.includes('-EQ') && (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-widest">Equity</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase truncate max-w-[200px] md:max-w-md">
+                        {item.name || 'Company Name Not Available'}
+                      </p>
+                    </div>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:block text-right">
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Token ID</p>
+                      <p className="text-[10px] font-bold text-slate-400 tracking-widest">#{item.symbolToken}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                      <ChevronRight size={18} />
+                    </div>
+                  </div>
                 </div>
               ))}
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 text-center">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Showing top {Math.min(suggestions.length, 8)} matches from Angel One</p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

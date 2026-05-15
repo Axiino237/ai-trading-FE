@@ -33,6 +33,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('stocksDarkMode');
     return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<any>(null);
@@ -56,6 +57,8 @@ const App: React.FC = () => {
   const [tradeMode, setTradeMode] = useState('PAPER');
   const [scanMode, setScanMode] = useState('STRICT');
   const [maxTrades, setMaxTrades] = useState(5);
+  const [orderType, setOrderType] = useState('LIMIT');
+  const [smartMode, setSmartMode] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<any>({});
   const [stats, setStats] = useState({ totalBalance: 0, todayPnl: 0, investedCapital: 0, activeTrades: 0 });
 
@@ -172,6 +175,8 @@ const App: React.FC = () => {
       setTradeMode(sets.data.trade_mode || 'PAPER');
       setScanMode(sets.data.scan_mode || 'STRICT');
       setMaxTrades(sets.data.daily_trade_limit || 5);
+      setOrderType(sets.data.order_type || 'LIMIT');
+      setSmartMode(sets.data.smart_mode || false);
     } catch (e) { console.warn('[fetchData] settings failed:', e); }
 
     try {
@@ -227,9 +232,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleManualTradeOpen = async (symbol: string, price: number, type: 'BUY' | 'SELL', quantity: number) => {
+  const handleManualTradeOpen = async (symbol: string, price: number, type: 'BUY' | 'SELL', quantity: number, sl?: number, tp?: number, holdingType?: string, duration?: string, manualOrderType?: string) => {
     try {
-      await axios.post(`${BACKEND_URL}/trade/manual`, { symbol, price, type, quantity }, { headers: { Authorization: `Bearer ${authToken}` } });
+      await axios.post(`${BACKEND_URL}/trade/manual`, { 
+        symbol, price, type, quantity, sl, tp, holdingType, expectedDuration: duration, orderType: manualOrderType || orderType 
+      }, { headers: { Authorization: `Bearer ${authToken}` } });
       alert('Manual Trade Opened!');
       fetchData();
     } catch (e: any) { alert(e.response?.data?.error || 'Trade Failed'); }
@@ -281,15 +288,26 @@ const App: React.FC = () => {
         authUser={authUser} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}
         handleLogout={handleLogout}
         navItems={navItems}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
 
       <div className="flex flex-col flex-1 overflow-hidden relative">
         <header className="px-4 md:px-10 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between min-h-[72px]">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase">
-              {navItems.find(i => i.id === activeTab)?.label}
-            </h1>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Global Market Terminal v4.0</p>
+          <div className="flex items-center gap-4">
+            {/* MOBILE MENU BUTTON */}
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+            >
+              <Activity size={20} />
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase">
+                {navItems.find(i => i.id === activeTab)?.label}
+              </h1>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Global Market Terminal v4.0</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full border border-emerald-100 dark:border-emerald-800">
@@ -342,6 +360,8 @@ const App: React.FC = () => {
                 tradeMode={tradeMode} setTradeMode={setTradeMode}
                 scanMode={scanMode} setScanMode={setScanMode}
                 maxTrades={maxTrades} setMaxTrades={setMaxTrades}
+                orderType={orderType} setOrderType={setOrderType}
+                smartMode={smartMode} setSmartMode={setSmartMode}
                 updateSettings={updateSettings}
                 authUser={authUser}
               />
@@ -353,23 +373,6 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-[50] shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-        {navItems.map((item: any) => {
-          const Icon = item.icon;
-          const active = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-blue-600' : 'text-slate-400'}`}
-            >
-              <Icon size={20} fill={active ? 'currentColor' : 'none'} fillOpacity={0.1} />
-              <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
 
       {/* UPGRADE MODAL */}
       <AnimatePresence>
