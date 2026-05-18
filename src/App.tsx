@@ -80,7 +80,7 @@ const App: React.FC = () => {
       fetchData();
       const socket = io(SOCKET_URL);
       socket.on('symbol-status', (data) => {
-        setLiveData((prev: any) => ({ ...prev, [data.symbol]: data }));
+        setLiveData((prev: any) => ({ ...prev, [data.symbol]: { ...prev[data.symbol], ...data } }));
       });
       return () => { socket.disconnect(); };
     }
